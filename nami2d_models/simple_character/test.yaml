@@ -1,0 +1,47 @@
+name: Simple Character
+version: "1.0"
+parts:
+  - name: body.png
+    layer: 0
+    mesh:
+      grid: [2, 2]
+      points:
+        [ [-0.5, -0.5], [0.0, -0.5], [0.5, -0.5],
+          [-0.5,  0.0], [0.0,  0.0], [0.5,  0.0],
+          [-0.5,  0.5], [0.0,  0.5], [0.5,  0.5] ]
+  - name: head.png
+    layer: 1
+    mesh:
+      grid: [2, 2]
+      points:
+        [ [-0.3, -0.3], [0.0, -0.3], [0.3, -0.3],
+          [-0.3,  0.0], [0.0,  0.0], [0.3,  0.0],
+          [-0.3,  0.3], [0.0,  0.3], [0.3,  0.3] ]
+    bones:
+      - name: head_bone
+        position: [0, 0]
+        children: [eye_left_bone, eye_right_bone]
+  - name: eye_left.png
+    layer: 2
+    mesh:
+      grid: [2, 2]
+      points:
+        [ [-0.15, -0.1], [-0.1, -0.1], [-0.05, -0.1],
+          [-0.15,  0.0], [-0.1,  0.0], [-0.05,  0.0],
+          [-0.15,  0.1], [-0.1,  0.1], [-0.05,  0.1] ]
+    bones:
+      - name: eye_left_bone
+        position: [-0.15, 0]
+        parent: head_bone
+  - name: eye_right.png
+    layer: 2
+    mesh:
+      grid: [2, 2]
+      points:
+        [ [ 0.05, -0.1], [ 0.1, -0.1], [ 0.15, -0.1],
+          [ 0.05,  0.0], [ 0.1,  0.0], [ 0.15,  0.0],
+          [ 0.05,  0.1], [ 0.1,  0.1], [ 0.15,  0.1] ]
+    bones:
+      - name: eye_right_bone
+        position: [0.15, 0]
+        parent: head_bone
