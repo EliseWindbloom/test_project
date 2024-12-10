@@ -160,8 +160,23 @@ def convert_ora_to_psd(ora_path: str, output_path: str = None) -> str:
         
         # Extract ORA file
         with tempfile.TemporaryDirectory() as tmpdirname:
+            # Manually extract the ORA file
             with zipfile.ZipFile(ora_path, 'r') as zf:
-                zf.extractall(tmpdirname)
+                # Create a list to store extracted layer paths
+                layer_paths = []
+                
+                # Extract stack.xml first
+                zf.extract('stack.xml', path=tmpdirname)
+                
+                # Attempt to find layers in both 'data/' and root directories
+                for filename in zf.namelist():
+                    # Check for PNG files in 'data/' or root directory
+                    if filename.endswith('.png') and (filename.startswith('data/') or not filename.startswith('data')):
+                        # Extract the file to a known location
+                        extracted_path = os.path.join(tmpdirname, os.path.basename(filename))
+                        with zf.open(filename) as source, open(extracted_path, 'wb') as target:
+                            target.write(source.read())
+                        layer_paths.append(extracted_path)
                 
                 # Parse stack.xml
                 import xml.etree.ElementTree as ET
@@ -173,32 +188,41 @@ def convert_ora_to_psd(ora_path: str, output_path: str = None) -> str:
                     raise
                 
                 # Get image dimensions
-                width = int(root.find('width').text)
-                height = int(root.find('height').text)
+                width = int(root.find('width').text if root.find('width') is not None else 512)
+                height = int(root.find('height').text if root.find('height') is not None else 512)
                 
                 # Create base PSD image
-                base_image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-                psd = PSDImage.frompil(base_image)
+                psd = PSDImage.new(
+                    mode='RGBA', 
+                    size=(width, height), 
+                    color=(255, 255, 255, 0)
+                )
                 
-                # Process layers
+                # Add layers
                 stack = root.find('stack')
                 if stack is not None:
-                    layers = list(stack.findall('layer'))
-                    
-                    # Process layers in reverse order to maintain proper stacking
-                    for layer_elem in reversed(layers):
-                        name = layer_elem.find('name').text
-                        src = layer_elem.find('src').text
+                    # Reverse the order to match PSD layer stacking
+                    layers = list(reversed(stack.findall('layer')))
+                    for layer_elem in layers:
+                        # Get layer details
+                        name = layer_elem.find('name').text if layer_elem.find('name') is not None else f'Layer {len(psd)}'
+                        src = layer_elem.find('src').text if layer_elem.find('src') is not None else None
                         
                         if not src:
                             continue
                         
+                        # Find the corresponding extracted layer image
+                        layer_filename = os.path.basename(src)
+                        layer_path = os.path.join(tmpdirname, layer_filename)
+                        
+                        # Verify the file exists
+                        if not os.path.exists(layer_path):
+                            logger.warning(f"Layer image not found: {layer_path}")
+                            continue
+                        
                         # Load layer image
-                        layer_path = os.path.join(tmpdirname, src)
                         try:
                             layer_image = Image.open(layer_path)
-                            if layer_image.mode != 'RGBA':
-                                layer_image = layer_image.convert('RGBA')
                         except Exception as e:
                             logger.warning(f"Could not load layer {name}: {e}")
                             continue
@@ -210,10 +234,10 @@ def convert_ora_to_psd(ora_path: str, output_path: str = None) -> str:
                         opacity = float(opacity_elem.text if opacity_elem is not None else 1.0)
                         visibility = visibility_elem is None or visibility_elem.text == 'visible'
                         
-                        # Create new layer
-                        new_layer = psd.add_layer(layer_image, name=name)
-                        new_layer.opacity = int(opacity * 255)
-                        new_layer.visible = visibility
+                        # Add layer to PSD
+                        psd_layer = psd.add_layer(layer_image, name=name)
+                        psd_layer.opacity = int(opacity * 255)  # Convert to 0-255 range
+                        psd_layer.visible = visibility
                 
                 # Save PSD file
                 psd.save(output_path)
@@ -224,6 +248,7 @@ def convert_ora_to_psd(ora_path: str, output_path: str = None) -> str:
     except Exception as e:
         logger.error(f"Error converting ORA to PSD: {e}")
         raise
+
 
 def main():
     """
