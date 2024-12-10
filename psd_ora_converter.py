@@ -71,9 +71,12 @@ def convert_psd_to_ora(psd_path: str, output_path: str = None) -> str:
                     # Convert RGBA if necessary
                     if layer_image.mode != 'RGBA':
                         layer_image = layer_image.convert('RGBA')
-                        
+
+                    # Reverse the layer index
+                    i_reverse = len(layers) - 1 - i
+
                     # Save layer image in data directory
-                    layer_filename = f'layer{i}.png'
+                    layer_filename = f'layer{i_reverse}.png'
                     layer_path = os.path.join(data_dir, layer_filename)
                     layer_image.save(layer_path)
                     
