@@ -103,6 +103,22 @@ def convert_psd_to_ora(psd_path: str, output_path: str = None) -> str:
                 # Close stack and image elements
                 f.write('  </stack>\n')
                 f.write('</image>')
+
+            # Create merged image (composite of all layers)
+            merged_image = psd.compose()
+            merged_path = os.path.join(tmpdirname, 'mergedimage.png')
+            merged_image.save(merged_path)
+
+            # Create thumbnails directory and thumbnail
+            thumbnails_dir = os.path.join(tmpdirname, 'Thumbnails')
+            os.makedirs(thumbnails_dir)
+
+            # Create thumbnail (256x256 max size)
+            thumb_size = (256, 256)
+            thumbnail = merged_image.copy()
+            thumbnail.thumbnail(thumb_size, Image.Resampling.LANCZOS)
+            thumbnail_path = os.path.join(thumbnails_dir, 'thumbnail.png')
+            thumbnail.save(thumbnail_path)
             
             # Create ORA file (ZIP archive)
             with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -111,6 +127,12 @@ def convert_psd_to_ora(psd_path: str, output_path: str = None) -> str:
                 
                 # Add stack.xml
                 zf.write(stack_xml_path, 'stack.xml')
+                
+                # Add merged image
+                zf.write(merged_path, 'mergedimage.png')
+                
+                # Add thumbnail
+                zf.write(thumbnail_path, 'Thumbnails/thumbnail.png')
                 
                 # Add layer images from data directory
                 for filename in os.listdir(data_dir):
